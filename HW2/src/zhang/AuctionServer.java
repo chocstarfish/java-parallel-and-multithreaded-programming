@@ -131,6 +131,8 @@ public class AuctionServer {
         //   If the seller has too many items up for bidding, don't let them add this one.
         //   Don't forget to increment the number of things the seller has currently listed.
         synchronized (instanceLock) {
+            int result = -1;
+
             // check if the server capacity has been reached
             if (itemsUpForBidding.size() < serverCapacity) {
                 Integer sellerItemCount = 0;
@@ -138,23 +140,27 @@ public class AuctionServer {
                     // existing seller
                     sellerItemCount = itemsPerSeller.get(sellerName);
                 } else {
-                    // new seller
+                    // create a new seller if not existed
                     itemsPerSeller.put(sellerName, 0);
                 }
 
                 // check if maxSellerItems has been reached
                 if (sellerItemCount < maxSellerItems) {
+                    // increase the seller item count by 1
                     itemsPerSeller.put(sellerName, sellerItemCount + 1);
+
+                    // increase the lastListingID by 1
                     Integer newId = ++lastListingID;
+
+                    // create a new item and add it into the list/hashmap
                     Item item = new Item(sellerName, itemName, newId, lowestBiddingPrice, biddingDurationMs);
                     itemsUpForBidding.add(item);
                     itemsAndIDs.put(newId, item);
-                    return newId;
-                } else {
-                    return -1;
+                    result = newId;
                 }
             }
-            return -1;
+
+            return result;
         }
     }
 
@@ -169,6 +175,7 @@ public class AuctionServer {
         // Some reminders:
         //    Don't forget that whatever you return is now outside of your control.
         synchronized (itemsUpForBidding) {
+            // make a copy of the itemsUpForBidding ArrayList for others to play with
             return new ArrayList<Item>(itemsUpForBidding);
         }
     }
@@ -194,40 +201,48 @@ public class AuctionServer {
         //   Decrement the former winning bidder's count
         //   Put your bid in place
         synchronized (instanceLock) {
+            boolean result = false;
+            // check if the item exists
             if (itemsAndIDs.containsKey(listingID)) {
                 Item item = itemsAndIDs.get(listingID);
+
+                // check if the item is still open
                 if (item.biddingOpen()) {
+                    // check if the buyer has ever bidded for any items
                     if (itemsPerBuyer.containsKey(bidderName)) {
                         int currentBidCount = itemsPerBuyer.get(bidderName);
+                        // check if the bidder has too many items in the bidding list
                         if (currentBidCount < maxBidCount) {
                             if (highestBids.containsKey(listingID)) {
                                 // item already been bidded
                                 int currentHighestBid = highestBids.get(listingID);
+
+                                // check if the current bidding amount exceeds the current highest bid
                                 if (biddingAmount > currentHighestBid) {
                                     if (highestBidders.containsKey(listingID)) {
                                         String highestBidderName = highestBidders.get(listingID);
-                                        itemsPerBuyer.put(highestBidderName, itemsPerBuyer.get(highestBidderName) - 1);
+                                        // check if the buyer already holds the highest bid
+                                        if (!highestBidderName.equals(bidderName)) {
+                                            // decrease the number of bids for the former highest bidder
+                                            itemsPerBuyer.put(highestBidderName, itemsPerBuyer.get(highestBidderName) - 1);
+
+                                            // update the highest bids and bidder with current buyer
+                                            highestBids.put(listingID, biddingAmount);
+                                            highestBidders.put(listingID, bidderName);
+                                            result = true;
+                                        }
                                     }
 
-                                    highestBids.put(listingID, biddingAmount);
-                                    highestBidders.put(listingID, bidderName);
-                                } else {
-                                    return false;
+
                                 }
                             }
-                        } else {
-                            return false;
                         }
                     }
-                } else {
-                    return false;
-                }
-            } else {
-                return false;
-            }
-        }
 
-        return false;
+                }
+            }
+            return result;
+        }
     }
 
     /**
@@ -239,6 +254,7 @@ public class AuctionServer {
      * 2 (open) if this <code>Item</code> is still up for auction<br>
      * 3 (failed) If this <code>Bidder</code> did not win or the <code>Item</code> does not exist
      */
+
     public int checkBidStatus(String bidderName, int listingID) {
         // TODO: IMPLEMENT CODE HERE
         // Some reminders:
@@ -247,38 +263,47 @@ public class AuctionServer {
         //     Decrease the count of items being bid on by the winning bidder if there was any...
         //     Update the number of open bids for this seller
         synchronized (instanceLock) {
+            int result = 3;
+            // check if the item and the buyer exist in the lists
             if (!itemsAndIDs.containsKey(listingID) || !itemsPerBuyer.containsKey(bidderName)) {
-                return 3;
+                return result;
             }
 
             Item item = itemsAndIDs.get(listingID);
+
+            // check if the item is still open for bidding
             if (item.biddingOpen()) {
-                return 2;
-            } else {
+                result = 2;
+            } else if (itemsUpForBidding.contains(item)) {
                 // remove item from server
                 itemsUpForBidding.remove(item);
 
-                soldItemsCount++;
-
+                // check if the item has ever been bidded
                 if (highestBidders.containsKey(listingID)) {
                     String highestBidder = highestBidders.get(listingID);
 
+                    // update the highest bidder's item count
                     itemsPerBuyer.put(highestBidder, itemsPerBuyer.get(highestBidder) - 1);
 
-                    itemsPerSeller.put(item.seller(), itemsPerSeller.get(item.seller()) - 1);
+                    String seller = item.seller();
 
-                    revenue += highestBids.get(listingID);
+                    // update the seller's item count
+                    itemsPerSeller.put(seller, itemsPerSeller.get(seller) - 1);
 
+                    // check if the highest bidder is the current bidder
                     if (highestBidder.equals(bidderName)) {
-                        return 1;
-                    } else {
-                        return 3;
+                        result = 1;
                     }
-                } else {
-                    return 3;
-                }
-            }
 
+                    // increase the sold items count
+                    soldItemsCount++;
+
+                    // increase the revenue
+                    revenue += highestBids.get(listingID);
+                }
+
+            }
+            return result;
         }
     }
 
@@ -292,22 +317,25 @@ public class AuctionServer {
     public int itemPrice(int listingID) {
         // TODO: IMPLEMENT CODE HERE
         synchronized (instanceLock) {
+            int result = -1;
+            // check if the listingID exists in the list
             if (!itemsAndIDs.containsKey(listingID)) {
-                return -1;
+                return result;
             }
 
+            // check if the item has been bidded
             if (highestBids.containsKey(listingID)) {
-                return highestBids.get(listingID);
+                result = highestBids.get(listingID);
             } else {
-                synchronized (itemsUpForBidding) {
-                    for (Item item : itemsUpForBidding) {
-                        if (item.listingID() == listingID) {
-                            return item.lowestBiddingPrice();
-                        }
+                // get the opening price of the item
+                for (Item item : itemsUpForBidding) {
+                    if (item.listingID() == listingID) {
+                        return item.lowestBiddingPrice();
                     }
-                    return -1;
                 }
             }
+
+            return result;
         }
     }
 
@@ -319,6 +347,7 @@ public class AuctionServer {
      */
     public Boolean itemUnbid(int listingID) {
         // TODO: IMPLEMENT CODE HERE
+        // check if an item exists and has not been bidded
         return !itemsAndIDs.containsKey(listingID) || !highestBids.containsKey(listingID);
     }
 
