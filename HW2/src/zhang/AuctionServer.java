@@ -201,49 +201,56 @@ public class AuctionServer {
         //   Decrement the former winning bidder's count
         //   Put your bid in place
         synchronized (instanceLock) {
-            boolean result = false;
             // check if the item exists
             if (itemsAndIDs.containsKey(listingID)) {
                 Item item = itemsAndIDs.get(listingID);
 
                 // check if the item is still open
                 if (item.biddingOpen()) {
+                    int currentBidCount = 0;
+
                     // check if the buyer has ever bidded for any items
                     if (itemsPerBuyer.containsKey(bidderName)) {
-                        int currentBidCount = itemsPerBuyer.get(bidderName);
+                        currentBidCount = itemsPerBuyer.get(bidderName);
                         // check if the bidder has too many items in the bidding list
-                        if (currentBidCount < maxBidCount) {
-                            if (highestBids.containsKey(listingID)) {
-                                // item already been bidded
-                                int currentHighestBid = highestBids.get(listingID);
-
-                                // check if the current bidding amount exceeds the current highest bid
-                                if (biddingAmount > currentHighestBid) {
-                                    if (highestBidders.containsKey(listingID)) {
-                                        String highestBidderName = highestBidders.get(listingID);
-                                        // check if the buyer already holds the highest bid
-                                        if (!highestBidderName.equals(bidderName)) {
-                                            // decrease the number of bids for the former highest bidder
-                                            itemsPerBuyer.put(highestBidderName, itemsPerBuyer.get(highestBidderName) - 1);
-
-                                            // update the highest bids and bidder with current buyer
-                                            highestBids.put(listingID, biddingAmount);
-                                            highestBidders.put(listingID, bidderName);
-                                            result = true;
-                                        }
-                                    }
-
-
-                                }
-                            }
+                        if (currentBidCount >= maxBidCount) {
+                            return false;
                         }
                     }
 
+                    if (highestBids.containsKey(listingID)) {
+                        // item already been bidded
+                        int currentHighestBid = highestBids.get(listingID);
+
+                        // check if the current bidding amount exceeds the current highest bid
+                        if (biddingAmount <= currentHighestBid) {
+                            return false;
+                        }
+
+                        if (highestBidders.containsKey(listingID)) {
+                            String highestBidderName = highestBidders.get(listingID);
+                            // check if the buyer already holds the highest bid
+                            if (highestBidderName.equals(bidderName)) {
+                                return false;
+                            }
+
+                            // decrease the number of bids for the former highest bidder
+                            itemsPerBuyer.put(highestBidderName, itemsPerBuyer.get(highestBidderName) - 1);
+                        }
+                    }
+
+                    itemsPerBuyer.put(bidderName, ++currentBidCount);
+
+                    // update the highest bids and bidder with current buyer
+                    highestBids.put(listingID, biddingAmount);
+                    highestBidders.put(listingID, bidderName);
+                    return true;
                 }
             }
-            return result;
+            return false;
         }
     }
+
 
     /**
      * Check the status of a <code>Bidder</code>'s bid on an <code>Item</code>
