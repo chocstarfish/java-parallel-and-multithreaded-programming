@@ -130,33 +130,39 @@ public class AuctionServer {
         //   If the seller is a new one, add them to the list of sellers.
         //   If the seller has too many items up for bidding, don't let them add this one.
         //   Don't forget to increment the number of things the seller has currently listed.
-        synchronized (instanceLock) {
+        synchronized (itemsUpForBidding) {
             int result = -1;
 
             // check if the server capacity has been reached
             if (itemsUpForBidding.size() < serverCapacity) {
                 Integer sellerItemCount = 0;
-                if (itemsPerSeller.containsKey(sellerName)) {
-                    // existing seller
-                    sellerItemCount = itemsPerSeller.get(sellerName);
-                } else {
-                    // create a new seller if not existed
-                    itemsPerSeller.put(sellerName, 0);
-                }
 
-                // check if maxSellerItems has been reached
-                if (sellerItemCount < maxSellerItems) {
-                    // increase the seller item count by 1
-                    itemsPerSeller.put(sellerName, sellerItemCount + 1);
+                synchronized (itemsPerSeller) {
+                    if (itemsPerSeller.containsKey(sellerName)) {
+                        // existing seller
+                        sellerItemCount = itemsPerSeller.get(sellerName);
+                    } else {
+                        // create a new seller if not existed
+                        itemsPerSeller.put(sellerName, 0);
+                    }
 
-                    // increase the lastListingID by 1
-                    Integer newId = ++lastListingID;
 
-                    // create a new item and add it into the list/hashmap
-                    Item item = new Item(sellerName, itemName, newId, lowestBiddingPrice, biddingDurationMs);
-                    itemsUpForBidding.add(item);
-                    itemsAndIDs.put(newId, item);
-                    result = newId;
+                    // check if maxSellerItems has been reached
+                    if (sellerItemCount < maxSellerItems) {
+                        // increase the seller item count by 1
+                        itemsPerSeller.put(sellerName, sellerItemCount + 1);
+
+                        // increase the lastListingID by 1
+                        Integer newId = ++lastListingID;
+
+                        // create a new item and add it into the list/hashmap
+                        Item item = new Item(sellerName, itemName, newId, lowestBiddingPrice, biddingDurationMs);
+                        itemsUpForBidding.add(item);
+                        synchronized (itemsAndIDs) {
+                            itemsAndIDs.put(newId, item);
+                        }
+                        result = newId;
+                    }
                 }
             }
 
@@ -200,7 +206,7 @@ public class AuctionServer {
         //   See if the new bid isn't better than the existing/opening bid floor.
         //   Decrement the former winning bidder's count
         //   Put your bid in place
-        synchronized (instanceLock) {
+        synchronized (itemsAndIDs) {
             // check if the item exists
             if (itemsAndIDs.containsKey(listingID)) {
                 Item item = itemsAndIDs.get(listingID);
@@ -209,41 +215,54 @@ public class AuctionServer {
                 if (item.biddingOpen()) {
                     int currentBidCount = 0;
 
-                    // check if the buyer has ever bidded for any items
-                    if (itemsPerBuyer.containsKey(bidderName)) {
-                        currentBidCount = itemsPerBuyer.get(bidderName);
-                        // check if the bidder has too many items in the bidding list
-                        if (currentBidCount >= maxBidCount) {
-                            return false;
-                        }
-                    }
-
-                    if (highestBids.containsKey(listingID)) {
-                        // item already been bidded
-                        int currentHighestBid = highestBids.get(listingID);
-
-                        // check if the current bidding amount exceeds the current highest bid
-                        if (biddingAmount <= currentHighestBid) {
-                            return false;
-                        }
-
-                        if (highestBidders.containsKey(listingID)) {
-                            String highestBidderName = highestBidders.get(listingID);
-                            // check if the buyer already holds the highest bid
-                            if (highestBidderName.equals(bidderName)) {
+                    synchronized (itemsPerBuyer) {
+                        // check if the buyer has ever bidded for any items
+                        if (itemsPerBuyer.containsKey(bidderName)) {
+                            currentBidCount = itemsPerBuyer.get(bidderName);
+                            // check if the bidder has too many items in the bidding list
+                            if (currentBidCount >= maxBidCount) {
                                 return false;
                             }
-
-                            // decrease the number of bids for the former highest bidder
-                            itemsPerBuyer.put(highestBidderName, itemsPerBuyer.get(highestBidderName) - 1);
                         }
+
+                        synchronized (highestBids) {
+                            if (highestBids.containsKey(listingID)) {
+                                // item already been bidded
+                                int currentHighestBid = highestBids.get(listingID);
+
+                                // check if the current bidding amount exceeds the current highest bid
+                                if (biddingAmount <= currentHighestBid) {
+                                    return false;
+                                }
+
+                                synchronized (highestBidders) {
+                                    if (highestBidders.containsKey(listingID)) {
+                                        String highestBidderName = highestBidders.get(listingID);
+                                        // check if the buyer already holds the highest bid
+                                        if (highestBidderName.equals(bidderName)) {
+                                            return false;
+                                        }
+
+                                        // decrease the number of bids for the former highest bidder
+                                        itemsPerBuyer.put(highestBidderName, itemsPerBuyer.get(highestBidderName) - 1);
+                                    }
+                                }
+                            }
+                        }
+
+                        itemsPerBuyer.put(bidderName, ++currentBidCount);
                     }
 
-                    itemsPerBuyer.put(bidderName, ++currentBidCount);
 
                     // update the highest bids and bidder with current buyer
-                    highestBids.put(listingID, biddingAmount);
-                    highestBidders.put(listingID, bidderName);
+                    synchronized (highestBids) {
+                        highestBids.put(listingID, biddingAmount);
+                    }
+
+                    synchronized (highestBidders) {
+                        highestBidders.put(listingID, bidderName);
+                    }
+
                     return true;
                 }
             }
