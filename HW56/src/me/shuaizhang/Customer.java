@@ -14,6 +14,8 @@ public class Customer implements Runnable {
     private final String name;
     private final List<Food> order;
     private final int orderNum;
+    private final int priority;
+    private final ActiveCustomerCollection activeCustomers;
 
     private static int runningCounter = 0;
 
@@ -22,14 +24,16 @@ public class Customer implements Runnable {
      * least the name and order but may take other parameters if you
      * would find adding them useful.
      */
-    public Customer(String name, List<Food> order) {
+    public Customer(String name, List<Food> order, int priority, ActiveCustomerCollection activeCustomers) {
         this.name = name;
         this.order = order;
+        this.priority = priority;
+        this.activeCustomers = activeCustomers;
         this.orderNum = ++runningCounter;
     }
 
     public String toString() {
-        return name;
+        return getName();
     }
 
     /**
@@ -40,7 +44,38 @@ public class Customer implements Runnable {
      */
     public void run() {
         //YOUR CODE GOES HERE...
+        Simulation.logEvent(SimulationEvent.customerStarting(this));
+
+        // wait until there is available table
+        while (true) {
+            if (!activeCustomers.isFull()) {
+                break;
+            }
+        }
+        Simulation.logEvent(SimulationEvent.customerEnteredCoffeeShop(this));
 
 
+        Simulation.logEvent(SimulationEvent.customerPlacedOrder(this, getOrder(), getOrderNum()));
+
+        Simulation.logEvent(SimulationEvent.customerReceivedOrder(this, getOrder(), getOrderNum()));
+
+        Simulation.logEvent(SimulationEvent.customerLeavingCoffeeShop(this));
+
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public List<Food> getOrder() {
+        return order;
+    }
+
+    public int getOrderNum() {
+        return orderNum;
+    }
+
+    public int getPriority() {
+        return priority;
     }
 }

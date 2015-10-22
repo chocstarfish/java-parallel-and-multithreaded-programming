@@ -1,10 +1,6 @@
 package me.shuaizhang;
 
-import java.util.Collections;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 /**
  * Simulation is the main class used to run the simulation.  You may
@@ -18,7 +14,7 @@ public class Simulation {
     /**
      * Used by other classes in the simulation to log events
      *
-     * @param event
+     * @param event Simulation event
      */
     public static void logEvent(SimulationEvent event) {
         events.add(event);
@@ -36,7 +32,7 @@ public class Simulation {
      *
      * @param numCustomers    the number of customers wanting to enter the coffee shop
      * @param numCooks        the number of cooks in the simulation
-     * @param numTables       the number of tables in the coffe shop (i.e. coffee shop capacity)
+     * @param numTables       the number of tables in the coffee shop (i.e. coffee shop capacity)
      * @param machineCapacity the capacity of all machines in the coffee shop
      * @param randomOrders    a flag say whether or not to give each customer a random order
      */
@@ -64,22 +60,22 @@ public class Simulation {
 
 
         // Set things up you might need
-
+        ActiveCustomerCollection activeCustomers = new ActiveCustomerCollection(numTables);
 
         // Start up machines
-        ArrayList<Machine> machines = new ArrayList<Machine>();
+        Map<String, Machine> machines = new HashMap<String, Machine>();
         Machine burgerMachine = new Machine("Burger Machine", FoodType.burger, machineCapacity);
         Machine friesMachine = new Machine("Fries Machine", FoodType.fries, machineCapacity);
         Machine coffeeMachine = new Machine("Coffee Machine", FoodType.coffee, machineCapacity);
 
-        machines.add(burgerMachine);
-        machines.add(friesMachine);
-        machines.add(coffeeMachine);
+        machines.put(FoodType.burger.name, burgerMachine);
+        machines.put(FoodType.fries.name, friesMachine);
+        machines.put(FoodType.coffee.name, coffeeMachine);
 
         Thread[] cooks = new Thread[numCooks];
         // Let cooks in
         for (int i = 0; i < numCooks; i++) {
-            Cook cook = new Cook("Cook #" + i);
+            Cook cook = new Cook("Cook " + i, machines, activeCustomers);
             cooks[i] = new Thread(cook);
             cooks[i].start();
         }
@@ -93,10 +89,10 @@ public class Simulation {
             order.add(FoodType.fries);
             order.add(FoodType.fries);
             order.add(FoodType.coffee);
+            Random rnd = new Random(27);
+            int priority = rnd.nextInt(3);
             for (int i = 0; i < customers.length; i++) {
-                customers[i] = new Thread(
-                        new Customer("Customer " + (i + 1), order)
-                );
+                customers[i] = new Thread(new Customer("Customer " + i, order, priority, activeCustomers));
             }
         } else {
             for (int i = 0; i < customers.length; i++) {
@@ -104,6 +100,7 @@ public class Simulation {
                 int burgerCount = rnd.nextInt(3);
                 int friesCount = rnd.nextInt(3);
                 int coffeeCount = rnd.nextInt(3);
+                int priority = rnd.nextInt(3);
                 order = new LinkedList<Food>();
                 for (int b = 0; b < burgerCount; b++) {
                     order.add(FoodType.burger);
@@ -114,17 +111,15 @@ public class Simulation {
                 for (int c = 0; c < coffeeCount; c++) {
                     order.add(FoodType.coffee);
                 }
-                customers[i] = new Thread(
-                        new Customer("Customer " + (i + 1), order)
-                );
+                customers[i] = new Thread(new Customer("Customer " + (i + 1), order, priority, activeCustomers));
             }
         }
 
 
         // Now "let the customers know the shop is open" by
         //    starting them running in their own thread.
-        for (int i = 0; i < customers.length; i++) {
-            customers[i].start();
+        for (Thread customer : customers) {
+            customer.start();
             //NOTE: Starting the customer does NOT mean they get to go
             //      right into the shop.  There has to be a table for
             //      them.  The Customer class' run method has many jobs
@@ -142,17 +137,21 @@ public class Simulation {
             // The easiest way to do this might be the following, where
             // we interrupt their threads.  There are other approaches
             // though, so you can change this if you want to.
-            for (int i = 0; i < cooks.length; i++)
-                cooks[i].interrupt();
-            for (int i = 0; i < cooks.length; i++)
-                cooks[i].join();
+            for (Thread cook : cooks) {
+                cook.interrupt();
+            }
+            for (Thread cook : cooks) {
+                cook.join();
+            }
 
         } catch (InterruptedException e) {
             System.out.println("Simulation thread interrupted.");
         }
 
         // Shut down machines
-
+        for (Machine machine : machines.values()) {
+            machine.shutDown();
+        }
 
         // Done with simulation
         logEvent(SimulationEvent.endSimulation());
