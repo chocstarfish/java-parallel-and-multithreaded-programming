@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="java-parallel-and-multithreaded-programming" default="all">
+
+
+    <property file="build.properties"/>
+
+    <!-- Compiler options -->
+
+    <property name="compiler.debug" value="on"/>
+    <property name="compiler.generate.no.warnings" value="off"/>
+    <property name="compiler.args" value=""/>
+    <property name="compiler.max.memory" value="700m"/>
+    <patternset id="ignored.files">
+        <exclude name="**/*.hprof/**"/>
+        <exclude name="**/*.pyc/**"/>
+        <exclude name="**/*.pyo/**"/>
+        <exclude name="**/*.rbc/**"/>
+        <exclude name="**/*~/**"/>
+        <exclude name="**/.DS_Store/**"/>
+        <exclude name="**/.bundle/**"/>
+        <exclude name="**/.git/**"/>
+        <exclude name="**/.hg/**"/>
+        <exclude name="**/.svn/**"/>
+        <exclude name="**/.tox/**"/>
+        <exclude name="**/CVS/**"/>
+        <exclude name="**/RCS/**"/>
+        <exclude name="**/SCCS/**"/>
+        <exclude name="**/__pycache__/**"/>
+        <exclude name="**/_svn/**"/>
+        <exclude name="**/rcs/**"/>
+    </patternset>
+    <patternset id="library.patterns">
+        <include name="*.war"/>
+        <include name="*.ear"/>
+        <include name="*.apk"/>
+        <include name="*.zip"/>
+        <include name="*.swc"/>
+        <include name="*.ane"/>
+        <include name="*.egg"/>
+        <include name="*.jar"/>
+    </patternset>
+    <patternset id="compiler.resources">
+        <exclude name="**/?*.java"/>
+        <exclude name="**/?*.form"/>
+        <exclude name="**/?*.class"/>
+        <exclude name="**/?*.groovy"/>
+        <exclude name="**/?*.scala"/>
+        <exclude name="**/?*.flex"/>
+        <exclude name="**/?*.kt"/>
+        <exclude name="**/?*.clj"/>
+    </patternset>
+
+
+    <!-- Project Libraries -->
+
+    <!-- Global Libraries -->
+
+
+    <!-- Application Server Libraries -->
+
+    <!-- Modules -->
+
+
+    <!-- Module java-parallel-and-multithreaded-programming -->
+
+    <dirname property="module.java-parallel-and-multithreaded-programming.basedir" file="${ant.file}"/>
+
+
+    <property name="compiler.args.java-parallel-and-multithreaded-programming"
+              value="-encoding UTF-8 -source 8 ${compiler.args}"/>
+
+    <property name="java-parallel-and-multithreaded-programming.output.dir"
+              value="${module.java-parallel-and-multithreaded-programming.basedir}/out/production/java-parallel-and-multithreaded-programming"/>
+
+    <path id="java-parallel-and-multithreaded-programming.module.bootclasspath">
+        <!-- Paths to be included in compilation bootclasspath -->
+    </path>
+
+    <path id="java-parallel-and-multithreaded-programming.module.production.classpath">
+    </path>
+
+    <path id="java-parallel-and-multithreaded-programming.runtime.production.module.classpath">
+        <pathelement location="${java-parallel-and-multithreaded-programming.output.dir}"/>
+    </path>
+
+    <path id="java-parallel-and-multithreaded-programming.module.classpath">
+        <pathelement location="${java-parallel-and-multithreaded-programming.output.dir}"/>
+    </path>
+
+    <path id="java-parallel-and-multithreaded-programming.runtime.module.classpath">
+        <pathelement location="${java-parallel-and-multithreaded-programming.output.dir}"/>
+    </path>
+
+
+    <patternset id="excluded.from.module.java-parallel-and-multithreaded-programming">
+        <patternset refid="ignored.files"/>
+    </patternset>
+
+    <patternset id="excluded.from.compilation.java-parallel-and-multithreaded-programming">
+        <patternset refid="excluded.from.module.java-parallel-and-multithreaded-programming"/>
+    </patternset>
+
+    <path id="java-parallel-and-multithreaded-programming.module.sourcepath">
+        <dirset dir="${module.java-parallel-and-multithreaded-programming.basedir}">
+            <include name="src"/>
+        </dirset>
+    </path>
+
+
+    <target name="compile.module.java-parallel-and-multithreaded-programming"
+            depends="compile.module.java-parallel-and-multithreaded-programming.production"
+            description="Compile module java-parallel-and-multithreaded-programming"/>
+
+    <target name="compile.module.java-parallel-and-multithreaded-programming.production"
+            description="Compile module java-parallel-and-multithreaded-programming; production classes">
+        <mkdir dir="${java-parallel-and-multithreaded-programming.output.dir}"/>
+        <javac destdir="${java-parallel-and-multithreaded-programming.output.dir}" debug="${compiler.debug}"
+               nowarn="${compiler.generate.no.warnings}" memorymaximumsize="${compiler.max.memory}" fork="true">
+            <compilerarg line="${compiler.args.java-parallel-and-multithreaded-programming}"/>
+            <bootclasspath refid="java-parallel-and-multithreaded-programming.module.bootclasspath"/>
+            <classpath refid="java-parallel-and-multithreaded-programming.module.production.classpath"/>
+            <src refid="java-parallel-and-multithreaded-programming.module.sourcepath"/>
+            <patternset refid="excluded.from.compilation.java-parallel-and-multithreaded-programming"/>
+        </javac>
+
+        <copy todir="${java-parallel-and-multithreaded-programming.output.dir}">
+            <fileset dir="${module.java-parallel-and-multithreaded-programming.basedir}/src">
+                <patternset refid="compiler.resources"/>
+                <type type="file"/>
+            </fileset>
+        </copy>
+    </target>
+
+
+    <target name="clean.module.java-parallel-and-multithreaded-programming" description="cleanup module">
+        <delete dir="${java-parallel-and-multithreaded-programming.output.dir}"/>
+    </target>
+
+    <target name="init" description="Build initialization">
+        <!-- Perform any build initialization in this target -->
+    </target>
+
+    <target name="clean" depends="clean.module.java-parallel-and-multithreaded-programming" description="cleanup all"/>
+
+
+    <target name="build" depends="init, clean, compile.module.java-parallel-and-multithreaded-programming"
+            description="build all modules"/>
+
+    <target name="all" depends="build">
+        <java fork="true" classname="me.shuaizhang.Simulation">
+            <classpath>
+                <pathelement path="${java-parallel-and-multithreaded-programming.output.dir}"/>
+            </classpath>
+        </java>
+    </target>
+
+</project>
