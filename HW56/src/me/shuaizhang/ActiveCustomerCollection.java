@@ -1,28 +1,32 @@
 package me.shuaizhang;
 
+import java.util.ArrayList;
+
 /**
- * Created by NicolasZHANG on 10/22/15.
+ * Created by Shuai Zhang on 10/22/15.
  */
 public class ActiveCustomerCollection {
-    Customer[] activeCustomers;
+    private final ArrayList<Customer> activeCustomers;
     private int counter;
     private final int capacity;
 
     public ActiveCustomerCollection(int capacity) {
         this.capacity = capacity;
         counter = 0;
-        activeCustomers = new Customer[capacity];
+        activeCustomers = new ArrayList<Customer>();
     }
 
     public synchronized void addCustomer(Customer customer) {
-        activeCustomers[counter++] = customer;
+        activeCustomers.add(customer);
+        counter++;
     }
 
-    public synchronized void removeCustomer(int orderNum) {
+    public synchronized void finishWithCustomer(Order order) {
         for (int i = 0; i < counter; i++) {
-            Customer customer = activeCustomers[i];
-            if (customer.getOrderNum() == orderNum) {
-                activeCustomers[i] = null;
+            Customer customer = activeCustomers.get(i);
+            if (customer.getOrderNum() == order.getOrderNum()) {
+                activeCustomers.get(i).receiveOrder(order);
+                activeCustomers.remove(i);
                 counter--;
                 break;
             }

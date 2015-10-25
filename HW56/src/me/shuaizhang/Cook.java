@@ -15,21 +15,19 @@ public class Cook implements Runnable {
 
     private final String name;
     private final Map<String, Machine> machines;
-    private boolean working;
-    private ActiveCustomerCollection activeCustomers;
+    private final ActiveOrderCollection activeOrders;
 
     /**
      * You can feel free modify this constructor.  It must
      * take at least the name, but may take other parameters
      * if you would find adding them useful.
      *
-     * @param name            the name of the cook
-     * @param machines        the collection of machines
-     * @param activeCustomers the collection of seated customers
+     * @param name         the name of the cook
+     * @param machines     the collection of machines
+     * @param activeOrders the active order collection
      */
-    public Cook(String name, Map<String, Machine> machines, ActiveCustomerCollection activeCustomers) {
-        this.activeCustomers = activeCustomers;
-        working = true;
+    public Cook(String name, Map<String, Machine> machines, ActiveOrderCollection activeOrders) {
+        this.activeOrders = activeOrders;
         this.name = name;
         this.machines = machines;
     }
@@ -37,6 +35,7 @@ public class Cook implements Runnable {
     public String toString() {
         return name;
     }
+
 
     /**
      * This method executes as follows.  The cook tries to retrieve
@@ -52,46 +51,44 @@ public class Cook implements Runnable {
      */
     public void run() {
         Simulation.logEvent(SimulationEvent.cookStarting(this));
-        while (working) {
+        while (!Thread.currentThread().isInterrupted()) {
             // get order
-
             try {
-                Simulation.logEvent(SimulationEvent.cookReceivedOrder(this, null, 0));
-                Simulation.logEvent(SimulationEvent.cookStartedFood(this, null, 0));
+                Order order = activeOrders.getAnOrder();
 
-                int orderNum = 0;
-
-                ArrayList<Food> order = new ArrayList<Food>();
-                order.add(FoodType.burger);
-                order.add(FoodType.fries);
-                order.add(FoodType.fries);
-                order.add(FoodType.coffee);
-                Customer customer = new Customer("Test", order, orderNum, activeCustomers);
-
-                ArrayList<Future<MachineCookResult>> resultList = new ArrayList<Future<MachineCookResult>>();
-                for (Food food : customer.getOrder()) {
-                    Machine machine = machines.get(food.name);
-                    Future<MachineCookResult> machineCookResultFuture = machine.makeFood(food, orderNum);
-                    resultList.add(machineCookResultFuture);
+                if (order == null) {
+                    continue;
                 }
 
+                Simulation.logEvent(SimulationEvent.cookReceivedOrder(this, order.getOrderItems(), order.getOrderNum()));
 
-                for (Future<MachineCookResult> result : resultList) {
+                ArrayList<Future<MachineCookingResult>> resultList = new ArrayList<Future<MachineCookingResult>>();
+                for (Food food : order.getOrderItems()) {
+                    Machine machine = machines.get(food.name);
+                    Future<MachineCookingResult> machineCookResultFuture = machine.makeFood(food, order.getOrderNum());
+                    resultList.add(machineCookResultFuture);
+                    Simulation.logEvent(SimulationEvent.cookStartedFood(this, food, order.getOrderNum()));
+                }
+
+                // get machine cooking results sequentially
+                for (Future<MachineCookingResult> result : resultList) {
                     try {
-                        MachineCookResult machineCookResult = result.get();
-                        Simulation.logEvent(SimulationEvent.cookFinishedFood(this, machineCookResult.food, machineCookResult.orderNum));
+                        MachineCookingResult machineCookingResult = result.get();
+                        Simulation.logEvent(SimulationEvent.cookFinishedFood(this, machineCookingResult.food, machineCookingResult.orderNum));
                     } catch (ExecutionException e) {
                         e.printStackTrace();
                     }
                 }
 
-                Simulation.logEvent(SimulationEvent.cookCompletedOrder(this, customer.getOrderNum()));
+                Simulation.logEvent(SimulationEvent.cookCompletedOrder(this, order.getOrderNum()));
+                activeOrders.finishOrder(order);
             } catch (InterruptedException e) {
                 // This code assumes the provided code in the Simulation class
                 // that interrupts each cook thread when all customers are done.
                 // You might need to change this if you change how things are
                 // done in the Simulation class.
                 Simulation.logEvent(SimulationEvent.cookEnding(this));
+                break;
             }
         }
     }

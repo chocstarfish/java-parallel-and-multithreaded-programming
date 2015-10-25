@@ -61,7 +61,7 @@ public class Simulation {
 
         // Set things up you might need
         ActiveCustomerCollection activeCustomers = new ActiveCustomerCollection(numTables);
-
+        ActiveOrderCollection activeOrders = new ActiveOrderCollection(activeCustomers);
         // Start up machines
         Map<String, Machine> machines = new HashMap<String, Machine>();
         Machine burgerMachine = new Machine("Burger Machine", FoodType.burger, machineCapacity);
@@ -75,7 +75,7 @@ public class Simulation {
         Thread[] cooks = new Thread[numCooks];
         // Let cooks in
         for (int i = 0; i < numCooks; i++) {
-            Cook cook = new Cook("Cook " + i, machines, activeCustomers);
+            Cook cook = new Cook("Cook " + i, machines, activeOrders);
             cooks[i] = new Thread(cook);
             cooks[i].start();
         }
@@ -89,10 +89,10 @@ public class Simulation {
             order.add(FoodType.fries);
             order.add(FoodType.fries);
             order.add(FoodType.coffee);
-            Random rnd = new Random(27);
+            Random rnd = new Random(13);
             int priority = rnd.nextInt(3);
             for (int i = 0; i < customers.length; i++) {
-                customers[i] = new Thread(new Customer("Customer " + i, order, priority, activeCustomers));
+                customers[i] = new Thread(new Customer("Customer " + i, order, priority + 1, activeCustomers, activeOrders));
             }
         } else {
             for (int i = 0; i < customers.length; i++) {
@@ -111,7 +111,7 @@ public class Simulation {
                 for (int c = 0; c < coffeeCount; c++) {
                     order.add(FoodType.coffee);
                 }
-                customers[i] = new Thread(new Customer("Customer " + (i + 1), order, priority, activeCustomers));
+                customers[i] = new Thread(new Customer("Customer " + (i + 1), order, priority, activeCustomers, activeOrders));
             }
         }
 
@@ -131,7 +131,9 @@ public class Simulation {
         try {
             // Wait for customers to finish
             //   -- you need to add some code here...
-
+            for (Thread customer : customers) {
+                customer.join();
+            }
 
             // Then send cooks home...
             // The easiest way to do this might be the following, where

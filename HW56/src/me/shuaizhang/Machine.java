@@ -47,19 +47,32 @@ public class Machine {
      * the call can proceed.  You will need to implement some means to
      * notify the calling Cook when the food item is finished.
      */
-    public Future<MachineCookResult> makeFood(Food food, int orderNum) {
+    public Future<MachineCookingResult> makeFood(Food food, int orderNum) {
         //YOUR CODE GOES HERE...
+        System.out.println("MACHINE PREP MAKING FOOD");
         CookAnItem cookAnItem = new CookAnItem(food, orderNum);
         return executor.submit(cookAnItem);
     }
 
     public void shutDown() {
-        Simulation.logEvent(SimulationEvent.machineEnding(this));
         executor.shutdown();
+        try {
+            executor.awaitTermination(2, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            System.out.println("ERROR: machine shutting down got interrupted");
+            e.printStackTrace();
+        } finally {
+            if (!executor.isShutdown()) {
+                executor.shutdownNow();
+                System.out.println("Force shutting down machine!!!");
+            }
+            Simulation.logEvent(SimulationEvent.machineEnding(this));
+        }
+
     }
 
     //THIS MIGHT BE A USEFUL METHOD TO HAVE AND USE BUT IS JUST ONE IDEA
-    private class CookAnItem implements Callable<MachineCookResult> {
+    private class CookAnItem implements Callable<MachineCookingResult> {
         private Food food;
         private int orderNum;
 
@@ -69,15 +82,16 @@ public class Machine {
         }
 
         @Override
-        public MachineCookResult call() throws Exception {
+        public MachineCookingResult call() throws Exception {
             try {
                 Long duration = (long) food.cookTimeMS;
                 Simulation.logEvent(SimulationEvent.machineCookingFood(Machine.this, food));
                 TimeUnit.MILLISECONDS.sleep(duration);
-                Simulation.logEvent(SimulationEvent.machineDoneFood(Machine.this, null));
-                return new MachineCookResult(food, orderNum);
+                Simulation.logEvent(SimulationEvent.machineDoneFood(Machine.this, food));
+                return new MachineCookingResult(food, orderNum);
             } catch (InterruptedException e) {
                 e.printStackTrace();
+                System.out.println("ERROR: Machine interrupted");
             }
             return null;
         }
