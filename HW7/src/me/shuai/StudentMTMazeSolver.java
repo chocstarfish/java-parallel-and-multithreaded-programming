@@ -1,101 +1,119 @@
 package me.shuai;
 
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.RecursiveTask;
 
 /**
- * Created by Shuai Zhang on 11/16/15.
+ * This file needs to hold your solver to be tested.
+ * You can alter the class to extend any class that extends MazeSolver.
+ * It must have a constructor that takes in a Maze.
+ * It must have a solve() method that returns the datatype List<Direction>
+ * which will either be a reference to a list of steps to take or will
+ * be null if the maze cannot be solved.
  */
-public class StudentMTMazeSolver extends SkippingMazeSolver {
-    private final int numberOfThreads = Runtime.getRuntime().availableProcessors() + 1;
-    private final ExecutorService pool;
+public class StudentMTMazeSolver extends MazeSolver {
+    private static final int THRESHOLD = 5;
+    private final ForkJoinPool forkJoinPool;
 
     public StudentMTMazeSolver(Maze maze) {
         super(maze);
-
-        pool = Executors.newFixedThreadPool(numberOfThreads);
+        forkJoinPool = new ForkJoinPool();
     }
 
     public List<Direction> solve() {
-        LinkedList<DFSTask> tasks = new LinkedList<>();
-        List<Future<List<Direction>>> futures;
-        List<Direction> result = null;
+        Position start = maze.getStart();
 
+        List<Direction> result = forkJoinPool.invoke(new MazeSolverTask(start, null, new LinkedList<>(), 0));
 
-        try {
-            Choice start = firstChoice(maze.getStart());
-
-            int size = start.choices.size();
-            for (int i = 0; i < size; i++) {
-                Choice choice = follow(start.at, start.choices.peek());
-                tasks.add(new DFSTask(choice, start.choices.pop()));
-            }
-
-            futures = pool.invokeAll(tasks);
-            pool.shutdown();
-
-            for (Future<List<Direction>> ans : futures) {
-                List<Direction> directions = ans.get();
-                if (directions != null) {
-                    result = directions;
-                }
-            }
-        } catch (InterruptedException | ExecutionException | SolutionFound e) {
-            e.printStackTrace();
+        if (maze.display != null) {
+            maze.display.updateDisplay();
         }
 
         return result;
     }
 
-    private class DFSTask implements Callable<List<Direction>> {
-        Choice head;
-        Direction direction;
 
-        public DFSTask(Choice head, Direction direction) {
-            this.head = head;
+    private class MazeSolverTask extends RecursiveTask<List<Direction>> {
+
+        private Position position;
+        private final Direction direction;
+        private final int recursionDepth;
+        private LinkedList<Direction> historicalDirections;
+
+        MazeSolverTask(Position position, Direction direction, LinkedList<Direction> historicalDirections, int recursionDepth) {
+            this.position = position;
             this.direction = direction;
+            this.recursionDepth = recursionDepth;
+            this.historicalDirections = historicalDirections;
         }
 
         @Override
-        public List<Direction> call() {
-            LinkedList<Choice> choiceStack = new LinkedList<>();
-            Choice currChoice;
-
-            try {
-                choiceStack.push(this.head);
-
-                while (!choiceStack.isEmpty()) {
-                    currChoice = choiceStack.peek();
-
-                    if (currChoice.isDeadend()) {
-                        //backtrack
-                        choiceStack.pop();
-                        if (!choiceStack.isEmpty()) {
-                            choiceStack.peek().choices.pop();
-                        }
-                        continue;
-                    }
-                    choiceStack.push(follow(currChoice.at, currChoice.choices.peek()));
-                }
-                return null;
-            } catch (SolutionFound e) {
-                Iterator<Choice> iter = choiceStack.iterator();
-                LinkedList<Direction> solutionPath = new LinkedList<Direction>();
-
-
-                while (iter.hasNext()) {
-                    currChoice = iter.next();
-                    solutionPath.push(currChoice.choices.peek());
-                }
-                solutionPath.push(direction);
-                if (maze.display != null) maze.display.updateDisplay();
-
-                return pathToFullPath(solutionPath);
+        protected List<Direction> compute() {
+            if (position.equals(maze.getEnd())) {
+                // found solution
+                historicalDirections.addLast(direction);
+                return historicalDirections;
             }
 
-        }
+            LinkedList<Direction> moves;
+            if (direction == null) {
+                moves = maze.getMoves(position);
+            } else {
+                moves = new LinkedList<>();
+                moves.addLast(direction);
+            }
 
+
+            int size = moves.size();
+            if (size == 0) {
+                // dead end
+                return null;
+            } else if (size == 1) {
+                // corridor
+                do {
+                    Direction direction = moves.peek();
+                    position = position.move(direction);
+                    moves = maze.getMoves(position);
+                } while (moves.size() == 1);
+            }
+
+            int newSize = moves.size();
+            if (newSize == 0) {
+                return null;
+            } else {
+                // newSize can be 2 and 3
+                MazeSolverTask forkedTask = null;
+                Direction directionForForkedTask = null;
+                if (recursionDepth > THRESHOLD) {
+                    directionForForkedTask = moves.pop();
+
+                    forkedTask = new MazeSolverTask(position.move(directionForForkedTask), directionForForkedTask, historicalDirections, 0);
+                    forkedTask.fork();
+                }
+
+                for (Direction dir : moves) {
+                    MazeSolverTask mazeSolverTask = new MazeSolverTask(position.move(dir), dir, historicalDirections, recursionDepth + 1);
+                    List<Direction> result = mazeSolverTask.compute();
+
+                    if (result != null) {
+                        result.add(0, dir);
+                        return result;
+                    }
+                }
+
+                if (forkedTask != null) {
+                    List<Direction> result = forkedTask.join();
+                    if (result != null) {
+                        result.add(0, directionForForkedTask);
+                        return result;
+                    }
+                }
+            }
+
+            return null;
+        }
     }
+
 }
