@@ -14,31 +14,42 @@ import java.util.concurrent.RecursiveTask;
  * be null if the maze cannot be solved.
  */
 public class StudentMTMazeSolver extends MazeSolver {
-    private static final int THRESHOLD = 5;
+    private int threshold = Runtime.getRuntime().availableProcessors();
     private final ForkJoinPool forkJoinPool;
 
     public StudentMTMazeSolver(Maze maze) {
         super(maze);
+        int scaledThreshold = (int) (Math.sqrt(maze.getWidth() * maze.getHeight()) / 100);
+        if (scaledThreshold > threshold) {
+            threshold = scaledThreshold;
+        }
+
         forkJoinPool = new ForkJoinPool();
     }
 
     public List<Direction> solve() {
         Position start = maze.getStart();
+        LinkedList<Direction> directions = new LinkedList<>();
+        Boolean result = forkJoinPool.invoke(new MazeSolverTask(start, null, directions, 0));
 
-        List<Direction> result = forkJoinPool.invoke(new MazeSolverTask(start, null, new LinkedList<>(), 0));
+        if (result) {
+            if (maze.display != null) {
+                maze.display.updateDisplay();
+            }
 
-        if (maze.display != null) {
-            maze.display.updateDisplay();
+
+            return directions;
         }
 
-        return result;
+
+        return null;
     }
 
 
-    private class MazeSolverTask extends RecursiveTask<List<Direction>> {
+    private class MazeSolverTask extends RecursiveTask<Boolean> {
 
         private Position position;
-        private final Direction direction;
+        private Direction direction;
         private final int recursionDepth;
         private LinkedList<Direction> historicalDirections;
 
@@ -50,69 +61,46 @@ public class StudentMTMazeSolver extends MazeSolver {
         }
 
         @Override
-        protected List<Direction> compute() {
+        protected Boolean compute() {
             if (position.equals(maze.getEnd())) {
                 // found solution
-                historicalDirections.addLast(direction);
-                return historicalDirections;
+                return true;
             }
 
-            LinkedList<Direction> moves;
-            if (direction == null) {
-                moves = maze.getMoves(position);
-            } else {
-                moves = new LinkedList<>();
-                moves.addLast(direction);
+            LinkedList<Direction> moves = maze.getMoves(position);
+
+            if (moves.isEmpty()) {
+                return false;
             }
 
-
-            int size = moves.size();
-            if (size == 0) {
-                // dead end
-                return null;
-            } else if (size == 1) {
-                // corridor
-                do {
-                    Direction direction = moves.peek();
-                    position = position.move(direction);
-                    moves = maze.getMoves(position);
-                } while (moves.size() == 1);
-            }
-
-            int newSize = moves.size();
-            if (newSize == 0) {
-                return null;
-            } else {
-                // newSize can be 2 and 3
-                MazeSolverTask forkedTask = null;
-                Direction directionForForkedTask = null;
-                if (recursionDepth > THRESHOLD) {
-                    directionForForkedTask = moves.pop();
-
-                    forkedTask = new MazeSolverTask(position.move(directionForForkedTask), directionForForkedTask, historicalDirections, 0);
-                    forkedTask.fork();
-                }
-
-                for (Direction dir : moves) {
-                    MazeSolverTask mazeSolverTask = new MazeSolverTask(position.move(dir), dir, historicalDirections, recursionDepth + 1);
-                    List<Direction> result = mazeSolverTask.compute();
-
-                    if (result != null) {
-                        result.add(0, dir);
-                        return result;
-                    }
-                }
-
-                if (forkedTask != null) {
-                    List<Direction> result = forkedTask.join();
-                    if (result != null) {
-                        result.add(0, directionForForkedTask);
-                        return result;
+            LinkedList<MazeSolverTask> forkedTasks = new LinkedList<>();
+            for (Direction move : moves) {
+                if (direction == null || !move.equals(direction.reverse())) {
+                    MazeSolverTask mazeSolverTask;
+                    if (recursionDepth < threshold) {
+                        mazeSolverTask = new MazeSolverTask(position.move(move), move, historicalDirections, recursionDepth + 1);
+                        Boolean result = mazeSolverTask.compute();
+                        if (result) {
+                            historicalDirections.push(move);
+                            return true;
+                        }
+                    } else {
+                        mazeSolverTask = new MazeSolverTask(position.move(move), move, historicalDirections, 0);
+                        forkedTasks.push(mazeSolverTask);
+                        mazeSolverTask.fork();
                     }
                 }
             }
 
-            return null;
+            for (MazeSolverTask forkedMazeSolverTask : forkedTasks) {
+                if (forkedMazeSolverTask.join()) {
+                    historicalDirections.push(forkedMazeSolverTask.direction);
+                    return true;
+                }
+            }
+
+
+            return false;
         }
     }
 
