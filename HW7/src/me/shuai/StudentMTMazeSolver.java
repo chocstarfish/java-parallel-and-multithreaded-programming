@@ -16,10 +16,11 @@ import java.util.concurrent.RecursiveTask;
 public class StudentMTMazeSolver extends MazeSolver {
     private int threshold = Runtime.getRuntime().availableProcessors();
     private final ForkJoinPool forkJoinPool;
+    LinkedList<Direction> historicalDirections = new LinkedList<>();
 
     public StudentMTMazeSolver(Maze maze) {
         super(maze);
-        int scaledThreshold = (int) (Math.sqrt(maze.getWidth() * maze.getHeight()) / 100);
+        int scaledThreshold = (int) (Math.sqrt(maze.maze.length()) / 2.8);
         if (scaledThreshold > threshold) {
             threshold = scaledThreshold;
         }
@@ -29,8 +30,8 @@ public class StudentMTMazeSolver extends MazeSolver {
 
     public List<Direction> solve() {
         Position start = maze.getStart();
-        LinkedList<Direction> directions = new LinkedList<>();
-        Boolean result = forkJoinPool.invoke(new MazeSolverTask(start, null, directions, 0));
+
+        Boolean result = forkJoinPool.invoke(new MazeSolverTask(start, null, 0));
 
         if (result) {
             if (maze.display != null) {
@@ -38,7 +39,7 @@ public class StudentMTMazeSolver extends MazeSolver {
             }
 
 
-            return directions;
+            return historicalDirections;
         }
 
 
@@ -51,13 +52,11 @@ public class StudentMTMazeSolver extends MazeSolver {
         private Position position;
         private Direction direction;
         private final int recursionDepth;
-        private LinkedList<Direction> historicalDirections;
 
-        MazeSolverTask(Position position, Direction direction, LinkedList<Direction> historicalDirections, int recursionDepth) {
+        MazeSolverTask(Position position, Direction direction, int recursionDepth) {
             this.position = position;
             this.direction = direction;
             this.recursionDepth = recursionDepth;
-            this.historicalDirections = historicalDirections;
         }
 
         @Override
@@ -78,14 +77,14 @@ public class StudentMTMazeSolver extends MazeSolver {
                 if (direction == null || !move.equals(direction.reverse())) {
                     MazeSolverTask mazeSolverTask;
                     if (recursionDepth < threshold) {
-                        mazeSolverTask = new MazeSolverTask(position.move(move), move, historicalDirections, recursionDepth + 1);
+                        mazeSolverTask = new MazeSolverTask(position.move(move), move, recursionDepth + 1);
                         Boolean result = mazeSolverTask.compute();
                         if (result) {
                             historicalDirections.push(move);
                             return true;
                         }
                     } else {
-                        mazeSolverTask = new MazeSolverTask(position.move(move), move, historicalDirections, 0);
+                        mazeSolverTask = new MazeSolverTask(position.move(move), move, 0);
                         forkedTasks.push(mazeSolverTask);
                         mazeSolverTask.fork();
                     }
@@ -98,7 +97,6 @@ public class StudentMTMazeSolver extends MazeSolver {
                     return true;
                 }
             }
-
 
             return false;
         }
