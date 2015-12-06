@@ -1,20 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="f008e57f-2949-4aa0-a9f8-f1afdafc5e4f" name="Default" comment="initial commit for HW6">
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/../HW8/.idea/uiDesigner.xml" />
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/../HW8/.idea/vcs.xml" />
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/../HW8/src/me/shuai/library/Book.java" />
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/../HW8/src/me/shuai/library/LibraryServer.java" />
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/../HW8/src/me/shuai/library/LibraryServerImpl.java" />
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/../HW8/src/me/shuai/library/server.policy" />
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/../HW8/src/me/shuai/member/Member.java" />
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/../HW8/src/me/shuai/member/MemberData.java" />
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/../HW8/src/me/shuai/member/MemberImpl.java" />
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/../HW8/src/me/shuai/member/client.policy" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/../HW7/.idea/workspace.xml" afterPath="$PROJECT_DIR$/../HW7/.idea/workspace.xml" />
-    </list>
+    <list default="true" id="f008e57f-2949-4aa0-a9f8-f1afdafc5e4f" name="Default" comment="initial commit for HW6" />
     <ignored path="HW56.iws" />
     <ignored path=".idea/workspace.xml" />
     <ignored path="$PROJECT_DIR$/out/" />
@@ -618,12 +605,12 @@
       <workItem from="1445700564289" duration="685000" />
       <workItem from="1445702548070" duration="13966000" />
       <workItem from="1448252931083" duration="600000" />
-      <workItem from="1448944860069" duration="555000" />
+      <workItem from="1448944860069" duration="561000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="45712000" />
+    <option name="totallyTimeSpent" value="45718000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="0" y="23" width="1440" height="873" extended-state="0" />

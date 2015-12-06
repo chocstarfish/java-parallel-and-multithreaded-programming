@@ -1,4 +1,4 @@
-package me.shuai.library;
+package me.shuai.core;
 
 import java.io.Serializable;
 import java.util.Random;

@@ -1,16 +1,14 @@
 /**
  *
  */
-package me.shuai.member;
-
-import me.shuai.library.Book;
+package me.shuai.core;
 
 import java.io.Serializable;
 import java.util.List;
 
 
 /**
- * The data object that holds the member details. Used for RMI communication.
+ * The data object that holds the me.shuai.server.client details. Used for RMI communication.
  * This class implementation is provided for you. You may add other functionality if needed.
  */
 public class MemberData implements Serializable {
